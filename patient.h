@@ -2,12 +2,16 @@
 #define PATIENT_H
 
 #include <iostream>
-#include <limits>
+#include <string>
+#include <vector>
+#include <map>
+#include <stdexcept>
+
 using namespace std;
 
-const int MAX_PATIENTS = 100;
-
-/* ---------------- TEMPLATE CLASS ---------------- */
+/* =========================================================
+   TEMPLATE CLASS
+========================================================= */
 
 template <typename T>
 class Record
@@ -21,13 +25,57 @@ public:
         id = value;
     }
 
-    T getID()
+    T getID() const
     {
         return id;
     }
 };
 
-/* ---------------- BASE CLASS ---------------- */
+/* =========================================================
+   BASE ENTITY CLASS (Polymorphism)
+========================================================= */
+
+class Entity
+{
+public:
+    virtual void display() const = 0;
+    virtual ~Entity() {}
+};
+
+/* =========================================================
+   CUSTOM EXCEPTIONS
+========================================================= */
+
+class InvalidSeverityException : public exception
+{
+public:
+    const char* what() const noexcept override
+    {
+        return "Invalid severity! Severity must be between 1 and 5.";
+    }
+};
+
+class InvalidPatientDataException : public exception
+{
+public:
+    const char* what() const noexcept override
+    {
+        return "Invalid patient data entered.";
+    }
+};
+
+class FileNotFoundException : public exception
+{
+public:
+    const char* what() const noexcept override
+    {
+        return "Required file not found.";
+    }
+};
+
+/* =========================================================
+   PERSON CLASS
+========================================================= */
 
 class Person
 {
@@ -37,38 +85,133 @@ protected:
     string gender;
 
 public:
-    virtual void inputDetails();
+    virtual void inputDetails()
+    {
+        cin.ignore();
 
-    virtual void displayDetails();
+        cout << "\nEnter Name: ";
+        getline(cin, name);
 
-    string getName();
+        cout << "Enter Age: ";
+        cin >> age;
+
+        cin.ignore();
+
+        cout << "Enter Gender: ";
+        getline(cin, gender);
+    }
+
+    string getName() const
+    {
+        return name;
+    }
 
     virtual ~Person() {}
 };
 
-/* ---------------- DERIVED CLASS ---------------- */
+/* =========================================================
+   PATIENT CLASS
+========================================================= */
 
-class Patient : public Person, public Record<int>
+class Patient : public Person,
+                public Record<int>,
+                public Entity
 {
 private:
     string village;
+    string nearestHub;
     int severity;
-    string hospital;
+
+    string assignedHospitalID;
+    string assignedHospitalName;
 
 public:
-    void assignHospital();
 
-    void inputDetails() override;
+    /* ---------------- Constructor ---------------- */
 
-    void displayDetails() override;
+    Patient()
+    {
+        assignedHospitalID = "NONE";
+        assignedHospitalName = "Not Assigned";
+    }
+
+    /* ---------------- Registration ---------------- */
+
+    static Patient registerNewPatient(
+        const vector<string>& validVillages,
+        const map<string, string>& villageHubMap)
+    {
+        Patient p;
+
+        p.inputDetails();
+
+        cout << "Enter Village: ";
+        getline(cin, p.village);
+
+        if (villageHubMap.find(p.village) == villageHubMap.end())
+        {
+            throw InvalidPatientDataException();
+        }
+
+        p.nearestHub = villageHubMap.at(p.village);
+
+        cout << "Enter Severity (1-5): ";
+        cin >> p.severity;
+
+        if (p.severity < 1 || p.severity > 5)
+        {
+            throw InvalidSeverityException();
+        }
+
+        return p;
+    }
+
+    /* ---------------- Display ---------------- */
+
+    void display() const override
+    {
+        cout << "\n====================================";
+        cout << "\nPatient ID      : " << id;
+        cout << "\nName            : " << name;
+        cout << "\nAge             : " << age;
+        cout << "\nGender          : " << gender;
+        cout << "\nVillage         : " << village;
+        cout << "\nNearest Hub     : " << nearestHub;
+        cout << "\nSeverity        : " << severity;
+        cout << "\nAssigned Hosp   : " << assignedHospitalName;
+        cout << "\n====================================\n";
+    }
+
+    /* ---------------- Getters ---------------- */
+
+    int getSeverity() const
+    {
+        return severity;
+    }
+
+    string getVillage() const
+    {
+        return village;
+    }
+
+    string getNearestHub() const
+    {
+        return nearestHub;
+    }
+
+    string getAssignedHospitalID() const
+    {
+        return assignedHospitalID;
+    }
+
+    /* ---------------- Setters ---------------- */
+
+    void setAssignedHospital(string hospID,
+                             string hospName)
+    {
+        assignedHospitalID = hospID;
+        assignedHospitalName = hospName;
+    }
 };
-
-/* ---------------- FUNCTION DECLARATIONS ---------------- */
-
-void addPatient();
-
-void showPatients();
-
-void searchPatient();
 
 #endif
