@@ -1,10 +1,27 @@
+#ifndef PATIENT_H
+#define PATIENT_H
+#include <map>
 #include <iostream>
-#include <limits>
+#include <string>
+#include <vector>
+#include <stdexcept>
+
 using namespace std;
 
-const int MAX_PATIENTS = 100;
+/* =========================================================
+   BASE CLASS (Inheritance)
+========================================================= */
 
-/* ---------------- TEMPLATE CLASS ---------------- */
+class Entity
+{
+public:
+    virtual void display() const = 0;
+    virtual ~Entity() {}
+};
+
+/* =========================================================
+   TEMPLATE CLASS
+========================================================= */
 
 template <typename T>
 class Record
@@ -18,13 +35,46 @@ public:
         id = value;
     }
 
-    T getID()
+    T getID() const
     {
         return id;
     }
 };
 
-/* ---------------- BASE CLASS ---------------- */
+/* =========================================================
+   CUSTOM EXCEPTIONS
+========================================================= */
+
+class InvalidSeverityException : public exception
+{
+public:
+    const char* what() const noexcept override
+    {
+        return "Invalid severity! Must be between 1 and 5.";
+    }
+};
+
+class InvalidPatientDataException : public exception
+{
+public:
+    const char* what() const noexcept override
+    {
+        return "Invalid patient data entered.";
+    }
+};
+
+class FileNotFoundException : public exception
+{
+public:
+    const char* what() const noexcept override
+    {
+        return "Required file not found.";
+    }
+};
+
+/* =========================================================
+   PERSON CLASS
+========================================================= */
 
 class Person
 {
@@ -36,28 +86,21 @@ protected:
 public:
     virtual void inputDetails()
     {
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cin.ignore();
 
-        cout << "\nEnter Name: ";
+        cout << "Enter Name: ";
         getline(cin, name);
 
         cout << "Enter Age: ";
         cin >> age;
 
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cin.ignore();
 
         cout << "Enter Gender: ";
         getline(cin, gender);
     }
 
-    virtual void displayDetails()
-    {
-        cout << "\nName: " << name;
-        cout << "\nAge: " << age;
-        cout << "\nGender: " << gender;
-    }
-
-    string getName()
+    string getName() const
     {
         return name;
     }
@@ -65,165 +108,109 @@ public:
     virtual ~Person() {}
 };
 
-/* ---------------- DERIVED CLASS ---------------- */
+/* =========================================================
+   PATIENT CLASS
+========================================================= */
 
-class Patient : public Person, public Record<int>
+class Patient : public Person,
+                public Record<int>,
+                public Entity
 {
 private:
     string village;
+    string nearestHub;
     int severity;
-    string hospital;
+
+    string assignedHospitalID;
+    string assignedHospitalName;
 
 public:
 
-    void assignHospital()
+    /* ---------------- Constructor ---------------- */
+
+    Patient()
     {
-        if(village == "Taradevi" || village == "Jubbarhatti")
-            hospital = "IGMC Shimla";
-
-        else if(village == "Barog" || village == "Nagaun" || village == "Tanaji")
-            hospital = "Civil Hospital Kandaghat";
-
-        else if(village == "Dera" || village == "Kaithlighat" || village == "Kiarighat")
-            hospital = "Civil Hospital Kandaghat";
-
-        else if(village == "Rachhana")
-            hospital = "Regional Hospital Solan";
-
-        else
-            hospital = "Regional Hospital Solan";
+        assignedHospitalID = "NONE";
+        assignedHospitalName = "Not Assigned";
     }
 
-    /* --------- POLYMORPHISM (Function Overriding) --------- */
+    /* ---------------- Registration ---------------- */
 
-    void inputDetails() override
+    static Patient registerNewPatient(
+        const vector<string>& validVillages,
+        const map<string, string>& villageHubMap)
     {
-        Person::inputDetails();
+        Patient p;
+
+        p.inputDetails();
 
         cout << "Enter Village: ";
-        getline(cin, village);
+        getline(cin, p.village);
+
+        if (villageHubMap.find(p.village) == villageHubMap.end())
+        {
+            throw InvalidPatientDataException();
+        }
+
+        p.nearestHub = villageHubMap.at(p.village);
 
         cout << "Enter Severity (1-5): ";
-        cin >> severity;
+        cin >> p.severity;
 
-        assignHospital();
+        if (p.severity < 1 || p.severity > 5)
+        {
+            throw InvalidSeverityException();
+        }
+
+        return p;
     }
 
-    void displayDetails() override
+    /* ---------------- Display ---------------- */
+
+    void display() const override
     {
-        cout << "\n========== Patient Record ==========";
-        cout << "\nPatient ID: " << id;
-
-        Person::displayDetails();
-
-        cout << "\nVillage: " << village;
-        cout << "\nSeverity Level: " << severity;
-        cout << "\nAssigned Hospital: " << hospital;
+        cout << "\n====================================";
+        cout << "\nPatient ID      : " << id;
+        cout << "\nName            : " << name;
+        cout << "\nAge             : " << age;
+        cout << "\nGender          : " << gender;
+        cout << "\nVillage         : " << village;
+        cout << "\nNearest Hub     : " << nearestHub;
+        cout << "\nSeverity        : " << severity;
+        cout << "\nAssigned Hosp   : " << assignedHospitalName;
         cout << "\n====================================\n";
+    }
+
+    /* ---------------- Getters ---------------- */
+
+    int getSeverity() const
+    {
+        return severity;
+    }
+
+    string getVillage() const
+    {
+        return village;
+    }
+
+    string getNearestHub() const
+    {
+        return nearestHub;
+    }
+
+    string getAssignedHospitalID() const
+    {
+        return assignedHospitalID;
+    }
+
+    /* ---------------- Setters ---------------- */
+
+    void setAssignedHospital(string hospID,
+                             string hospName)
+    {
+        assignedHospitalID = hospID;
+        assignedHospitalName = hospName;
     }
 };
 
-/* ---------------- GLOBAL ARRAY ---------------- */
-
-Patient patients[MAX_PATIENTS];
-int patientCount = 0;
-
-/* ---------------- FUNCTIONS ---------------- */
-
-void addPatient()
-{
-    if(patientCount >= MAX_PATIENTS)
-    {
-        cout << "\nPatient storage full!\n";
-        return;
-    }
-
-    patients[patientCount].setID(patientCount + 1);
-
-    patients[patientCount].inputDetails();
-
-    patientCount++;
-
-    cout << "\nPatient Registered Successfully!\n";
-}
-
-void showPatients()
-{
-    if(patientCount == 0)
-    {
-        cout << "\nNo patients registered.\n";
-        return;
-    }
-
-    for(int i = 0; i < patientCount; i++)
-    {
-        patients[i].displayDetails();
-    }
-}
-
-void searchPatient()
-{
-    string searchName;
-
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
-
-    cout << "\nEnter patient name: ";
-    getline(cin, searchName);
-
-    for(int i = 0; i < patientCount; i++)
-    {
-        if(patients[i].getName() == searchName)
-        {
-            patients[i].displayDetails();
-            return;
-        }
-    }
-
-    cout << "\nPatient not found.\n";
-}
-
-/* ---------------- MAIN FUNCTION ---------------- */
-
-int main()
-{
-    int choice;
-
-    do
-    {
-        cout << "\n========================================";
-        cout << "\n Rural Healthcare Allocation System";
-        cout << "\n========================================";
-        cout << "\n1. Register Patient";
-        cout << "\n2. Show All Patients";
-        cout << "\n3. Search Patient";
-        cout << "\n4. Exit";
-        cout << "\nEnter choice: ";
-
-        cin >> choice;
-
-        switch(choice)
-        {
-            case 1:
-                addPatient();
-                break;
-
-            case 2:
-                showPatients();
-                break;
-
-            case 3:
-                searchPatient();
-                break;
-
-            case 4:
-                cout << "\nSystem Closed Successfully.\n";
-                break;
-
-            default:
-                cout << "\nInvalid choice! Please try again.\n";
-        }
-
-    } while(choice != 4);
-
-    return 0;
-}
+#endif
